@@ -1,8 +1,9 @@
 package jlox;
 
 import javax.swing.*;
+import java.util.List;
 
-public class Interpreter implements Expr.Visitor<Object>{
+public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     @Override
     public Object visitLiteralExpr(Expr.Literal expr){
@@ -51,6 +52,10 @@ public class Interpreter implements Expr.Visitor<Object>{
 
     private Object evaluate(Expr expr){ //helper method, sends the expression back inot the interpreter's visitor implementation
         return expr.accept(this);
+    }
+
+    private void execute(Stmt stmt){ //statement analogue for evaluate() for expressions
+        stmt.accept(this);
     }
 
     @Override
@@ -133,23 +138,27 @@ public class Interpreter implements Expr.Visitor<Object>{
         return object.toString();
     }
 
-    void interpret(Expr expression){
-        //wrapper, the Interpreter's public api which takes in the syntax tree for an expn and evaluates it
+    void interpret(List<Stmt> statements){
         try{
-            Object value = evaluate(expression);
-            System.out.println(stringify(value));
+            for(Stmt statement : statements){
+                execute(statement);
+            }
         } catch (RuntimeError error){
             Lox.runtimeError(error);
         }
     }
 
 
+    @Override
+    public Void visitExpressionStmt(Stmt.Expression stmt) {
+        evaluate(stmt.expression);
+        return null;
+    }
 
-
-
-
-
-
-
-
+    @Override
+    public Void visitPrintStmt(Stmt.Print stmt) {
+        Object value = evaluate(stmt.expression);
+        System.out.println(stringify(value));
+        return null;
+    }
 }
