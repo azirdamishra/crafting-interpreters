@@ -15,8 +15,17 @@ comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term -> factor ( ( "-" | "+" ) unary )* ;
 factor -> unary ( ( "/" | "*" ) unary )* ;
 unary -> ( "!" | "-" ) unary | primary ;
-primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
 
+Rules for kinds of statements that declare names (Variable declarations and assignments)
+
+program -> declaration* EOF ;
+declaration -> varDecl | statement ;
+statement -> exprStmt | printStmt ;
+
+    Rule for declaring a variable
+
+varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
  */
 
 public class Parser {
@@ -40,7 +49,8 @@ public class Parser {
     List<Stmt> parse() {
         List<Stmt> statements = new ArrayList<>();
         while (!isAtEnd()){
-            statements.add(statement());
+            //statements.add(statement());
+            statements.add(declarations()); //entry point method to the parser
         }
 
         return statements;
@@ -48,6 +58,17 @@ public class Parser {
 
     private Expr expression(){
         return equality();
+    }
+
+    private Stmt declarations() {
+        try{
+            if (match(VAR)) return  varDeclaration();
+
+            return statement();
+        } catch (ParseError error){
+            synchronize();
+            return null;
+        }
     }
 
     private Stmt statement(){
@@ -59,6 +80,18 @@ public class Parser {
         Expr value = expression();
         consume(SEMICOLON, "Expect ';' after value.");
         return new Stmt.Print(value);
+    }
+
+    private Stmt varDeclaration(){
+        Token name = consume(IDENTIFIER, "Expect variable name.");
+
+        Expr initializer = null;
+        if(match(EQUAL)){ //post matching the var token as variable initializer
+            initializer = expression();
+        }
+
+        consume(SEMICOLON, "Expect ';' after variable declaration.");
+        return new Stmt.Var(name, initializer);
     }
 
     private Stmt expressionStatement(){
@@ -159,6 +192,10 @@ public class Parser {
 
         if(match(NUMBER, STRING)){
             return new Expr.Literal(previous().literal);
+        }
+
+        if(match(IDENTIFIER)){
+            return new Expr.Variable(previous());
         }
 
         if(match(LEFT_PAREN)){
