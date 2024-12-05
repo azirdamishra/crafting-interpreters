@@ -5,6 +5,18 @@ import java.util.List;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
+    private Environment environment = new Environment(); //to keep the variables in memory
+
+    void interpret(List<Stmt> statements){
+        try{
+            for(Stmt statement : statements){
+                execute(statement);
+            }
+        } catch (RuntimeError error){
+            Lox.runtimeError(error);
+        }
+    }
+
     @Override
     public Object visitLiteralExpr(Expr.Literal expr){
         return expr.value;
@@ -138,17 +150,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
         return object.toString();
     }
 
-    void interpret(List<Stmt> statements){
-        try{
-            for(Stmt statement : statements){
-                execute(statement);
-            }
-        } catch (RuntimeError error){
-            Lox.runtimeError(error);
-        }
-    }
-
-
     @Override
     public Void visitExpressionStmt(Stmt.Expression stmt) {
         evaluate(stmt.expression);
@@ -160,5 +161,25 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
         Object value = evaluate(stmt.expression);
         System.out.println(stringify(value));
         return null;
+    }
+
+    @Override
+    public Void visitVarStmt(Stmt.Var stmt) {
+        /*
+        var a;
+        print a; //"nil"
+         */
+        Object value = null; //could make not defining a runtime error but chose to keep non-initialized value as null
+        if(stmt.initializer != null){
+            value = evaluate(stmt.initializer);
+        }
+
+        environment.define(stmt.name.lexeme, value); //binding the variable to that value
+        return null;
+    }
+
+    @Override
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
     }
 }
