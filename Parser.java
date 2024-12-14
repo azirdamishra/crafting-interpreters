@@ -26,6 +26,16 @@ statement -> exprStmt | printStmt ;
     Rule for declaring a variable
 
 varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
+
+Rules for assignment '='
+
+expression -> assignment;
+assignment -> IDENTIFIER "=" assignment | equality;
+
+Adding blocks to the environment:
+
+statement -> exprStmt | printStmt | block;
+block -> "{" declaration* "}" ;
  */
 
 public class Parser {
@@ -57,7 +67,7 @@ public class Parser {
     }
 
     private Expr expression(){
-        return equality();
+        return assignment();
     }
 
     private Stmt declarations() {
@@ -73,6 +83,7 @@ public class Parser {
 
     private Stmt statement(){
         if(match(PRINT)) return printStatement();
+        if(match(LEFT_BRACE)) return new Stmt.Block((block()));
         return expressionStatement();
     }
 
@@ -98,6 +109,38 @@ public class Parser {
         Expr expr = expression();
         consume(SEMICOLON, "Expect ';' after expression.");
         return new Stmt.Expression(expr);
+    }
+
+    private List<Stmt> block(){
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!check(RIGHT_BRACE) && !isAtEnd()){
+            statements.add(declarations());
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after block.");
+        return statements;
+    }
+
+    private Expr assignment(){
+        Expr expr = equality();
+
+        if(match(EQUAL)){
+            Token equals = previous();
+            Expr value = assignment();
+
+            if(expr instanceof Expr.Variable){
+                Token name = ((Expr.Variable)expr).name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment target.");
+            /*
+             we report an error if the left hand side isn't a valid assignment target
+             we don't throw it because the parser is not in a confused state where we need to de-panic and synchronize
+             */
+        }
+        return expr;
     }
 
     private Expr equality(){
