@@ -1,9 +1,7 @@
 package jlox;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-
 import static jlox.TokenType.*;
 
 /*
@@ -36,6 +34,20 @@ Adding blocks to the environment:
 
 statement -> exprStmt | printStmt | block;
 block -> "{" declaration* "}" ;
+
+Adding conditional operators:
+
+statement -> exprStmt | ifStmt | printStmt | block;
+ifStmt -> "if" "(" expression ")" statement
+            ( "else" statement )? ;
+
+Adding logical operators:
+
+expression -> assignment;
+assignment -> IDENTIFIER "=" assignment | logic_or ;
+logic_or -> logic_and ( "or" logic_and )* ;
+logic_and -> equality ( "and" equality )* ;
+
  */
 
 public class Parser {
@@ -82,9 +94,24 @@ public class Parser {
     }
 
     private Stmt statement(){
+        if(match(IF)) return ifStatement();
         if(match(PRINT)) return printStatement();
         if(match(LEFT_BRACE)) return new Stmt.Block((block()));
         return expressionStatement();
+    }
+
+    private Stmt ifStatement(){
+        consume(LEFT_PAREN, "Expect '(' after 'if'.");
+        Expr condition = expression();
+        consume(RIGHT_PAREN, "Expect ')' after if condition");
+
+        Stmt thenBranch = statement();
+        Stmt elseBranch = null;
+        if(match(ELSE)){
+            elseBranch = statement();
+        }
+
+        return new Stmt.If(condition, thenBranch, elseBranch);
     }
 
     private Stmt printStatement(){
@@ -123,7 +150,8 @@ public class Parser {
     }
 
     private Expr assignment(){
-        Expr expr = equality();
+        //Expr expr = equality(); /* to weave the new expressions into parser, we first change the parsing code for assignment to call or() */
+        Expr expr = or();
 
         if(match(EQUAL)){
             Token equals = previous();
@@ -140,6 +168,30 @@ public class Parser {
              we don't throw it because the parser is not in a confused state where we need to de-panic and synchronize
              */
         }
+        return expr;
+    }
+
+    private Expr or(){ //parse a series of or expressions 
+        Expr expr = and();
+
+        while(match(OR)){
+            Token operator = previous();
+            Expr right = and();
+            expr = new Expr.Logical(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Expr and(){
+        Expr expr = equality();
+
+        while(match(AND)){
+            Token operator = previous();
+            Expr right = equality(); //calls equality for its operands
+            expr = new Expr.Logical(expr, operator, right);
+        }
+
         return expr;
     }
 
