@@ -48,6 +48,10 @@ assignment -> IDENTIFIER "=" assignment | logic_or ;
 logic_or -> logic_and ( "or" logic_and )* ;
 logic_and -> equality ( "and" equality )* ;
 
+Adding while loop:
+statement -> exprStmt | ifStmt | printStmt | whileStmt | block ;
+whileStmt -> "while" "(" expression ")" statement ;
+
  */
 
 public class Parser {
@@ -96,6 +100,7 @@ public class Parser {
     private Stmt statement(){
         if(match(IF)) return ifStatement();
         if(match(PRINT)) return printStatement();
+        if(match(WHILE)) return whileStatement();
         if(match(LEFT_BRACE)) return new Stmt.Block((block()));
         return expressionStatement();
     }
@@ -130,6 +135,15 @@ public class Parser {
 
         consume(SEMICOLON, "Expect ';' after variable declaration.");
         return new Stmt.Var(name, initializer);
+    }
+
+    private Stmt whileStatement(){
+        consume(LEFT_PAREN, "Expect '(' after 'while'.");
+        Expr condition = expression();
+        consume(RIGHT_PAREN, "Experct ')' after condition.");
+        Stmt body = statement();
+
+        return new Stmt.While(condition, body);
     }
 
     private Stmt expressionStatement(){
