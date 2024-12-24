@@ -1,6 +1,7 @@
 package jlox;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import static jlox.TokenType.*;
 
@@ -52,6 +53,10 @@ Adding while loop:
 statement -> exprStmt | ifStmt | printStmt | whileStmt | block ;
 whileStmt -> "while" "(" expression ")" statement ;
 
+Adding for loops:
+statement -> exprStmt | forStmt | ifStmt | printStmt | whileStmt | block ;
+forStmt -> "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
+
  */
 
 public class Parser {
@@ -98,11 +103,63 @@ public class Parser {
     }
 
     private Stmt statement(){
+        if(match(FOR)) return forStatement();
         if(match(IF)) return ifStatement();
         if(match(PRINT)) return printStatement();
         if(match(WHILE)) return whileStatement();
         if(match(LEFT_BRACE)) return new Stmt.Block((block()));
         return expressionStatement();
+    }
+
+    private Stmt forStatement(){
+        consume(LEFT_PAREN, "Expect '(' after 'for'.)");
+
+        Stmt initializer;
+        if(match(SEMICOLON)){
+            initializer = null;
+        } else if (match(VAR)){
+            initializer = varDeclaration();
+        } else {
+            initializer = expressionStatement(); //so that initializer is always a type of statement 
+        }
+
+        Expr condition = null;
+        if(!check(SEMICOLON)){
+            condition = expression();
+        }
+        consume(SEMICOLON, "Expect ';' after loop condition."); //to check if the clause has been omitted 
+
+        Expr increment = null;
+        if(!check(RIGHT_PAREN)){
+            increment = expression();
+        }
+        consume(RIGHT_PAREN, "Expect ')' after for clauses.");
+
+        Stmt body = statement();
+
+        //synthesize syntax tree nodes that express the semantics of the for loop
+
+        //increment 
+        if(increment != null){
+            body = new Stmt.Block(
+                Arrays.asList(
+                    body,
+                    new Stmt.Expression(increment)
+                )
+            );
+        }
+
+        //building the loop
+        if(condition == null) condition = new Expr.Literal(true);
+        body = new Stmt.While(condition, body);
+
+        //initializer to run before the entire loop and wrap the entire process in a Block
+        if(initializer != null){
+            body = new Stmt.Block(Arrays.asList(initializer, body));
+        }
+
+        return body;
+
     }
 
     private Stmt ifStatement(){
