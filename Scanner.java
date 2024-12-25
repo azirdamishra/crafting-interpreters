@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import static jlox.TokenType.*; //static imports
 
 class Scanner{
@@ -100,10 +99,10 @@ class Scanner{
         }
     }
 
-    private void  identifier(){ //checking for reserved characters
+    private void identifier(){ //checking for reserved characters
         while(isAlphaNumeric(peek())) advance();
         String text = source.substring(start, current);
-        System.out.println("print text: " + text);
+        //System.out.println("print text: " + text); //token identifier text gets printed
         TokenType type = keywords.get(text); //checking if the identifier matches anything in the map
         //if it does then we assign and use that keyword's tokentype
         if(type == null){

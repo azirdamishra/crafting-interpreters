@@ -57,6 +57,21 @@ Adding for loops:
 statement -> exprStmt | forStmt | ifStmt | printStmt | whileStmt | block ;
 forStmt -> "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
 
+Adding functions:
+//The function call operator has a higher precedence than all other operators
+unary -> ( "!" | "-" ) unary | call ;
+call -> primary ( "(" arguments? ")" )* ; 
+//the rule above uses * to allow matching a series of calls like fn(1)(2)(3) --> this style is called "currying"
+//arguments call is itself optional
+arguments -> expression ( "," expression )* ;
+
+Function Declarations: 
+as func declarations bind a new name, they are allowed in places that permit declarations
+declaration-> funDecl | varDecl | statement ;
+funDecl -> "fun" function ;
+function -> IDENTIFIER "(" parameters? ")" block ;
+parameters -> IDENTIFIER ( "," IDENTIFIER )* ;
+
  */
 
 public class Parser {
@@ -93,6 +108,7 @@ public class Parser {
 
     private Stmt declarations() {
         try{
+            if (match(FUN)) return function("function");
             if (match(VAR)) return  varDeclaration();
 
             return statement();
@@ -207,6 +223,28 @@ public class Parser {
         Expr expr = expression();
         consume(SEMICOLON, "Expect ';' after expression.");
         return new Stmt.Expression(expr);
+    }
+    
+    private Stmt.Function function(String kind){
+        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        List<Token> parameters = new ArrayList<>();
+        if(!check(RIGHT_PAREN)){
+            do{
+                if(parameters.size() >= 255){
+                    error(peek(), "Can't have more than 255 parameters.");
+                }
+
+                parameters.add(
+                    consume(IDENTIFIER, "Expect parameter name.")
+                );
+            } while(match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameters.");
+
+        consume(LEFT_BRACE, "Expect '{' before " + kind + " body." ); //block expects '{' to be consumed beforehand
+        List<Stmt> body = block();
+        return new Stmt.Function(name, parameters, body);
     }
 
     private List<Stmt> block(){
@@ -348,7 +386,37 @@ public class Parser {
             Expr right = unary();
             return new Expr.Unary(operator, right);
         }
-        return primary();
+        return call();
+    }
+
+    private Expr call(){
+        Expr expr = primary();
+
+        while (true) { 
+            if(match(LEFT_PAREN)){
+                expr = finishCall(expr);
+            }else{
+                break;
+            }
+        }
+
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee){
+        List<Expr> arguments = new ArrayList<>();
+        if(!check(RIGHT_PAREN)){
+            do { 
+                if(arguments.size() >= 255){
+                    error(peek(), "Can't have more than 255 arguments."); //only reports and doesn't throw error as the grammar is consistent 
+                }
+                arguments.add(expression()); //handle zero argument case
+            } while (match(COMMA));
+        }
+
+        Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+
+        return new Expr.Call(callee, paren, arguments);
     }
 
     private Expr primary(){

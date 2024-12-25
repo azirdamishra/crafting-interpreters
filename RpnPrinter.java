@@ -40,6 +40,21 @@ class RpnPrinter implements Expr.Visitor<String> {
         return ""; //check this
     }
 
+    @Override
+    public String visitLogicalExpr(Expr.Logical expr) {
+        return expr.left.accept(this) + " " + expr.right.accept(this) + " " + expr.operator.lexeme;
+    }
+
+    @Override
+    public String visitCallExpr(Expr.Call expr) {
+        StringBuilder builder = new StringBuilder();
+        for (Expr argument : expr.arguments) {
+            builder.append(argument.accept(this)).append(" ");
+        }
+        builder.append(expr.callee.accept(this));
+        return builder.toString();
+    }
+
     public static void main(String[] args) {
         Expr expression = new Expr.Binary(
                 new Expr.Unary(
