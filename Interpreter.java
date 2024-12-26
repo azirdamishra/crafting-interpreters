@@ -2,7 +2,6 @@ package jlox;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.sound.midi.VoiceStatus;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
@@ -231,7 +230,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt){
-        LoxFunction function = new LoxFunction(stmt);
+        LoxFunction function = new LoxFunction(stmt, environment); //this is the env that is active when the functionis declared not when it is called
         environment.define(stmt.name.lexeme, function);
         return null;
     }
