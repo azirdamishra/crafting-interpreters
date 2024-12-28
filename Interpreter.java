@@ -1,13 +1,16 @@
 package jlox;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     //private Environment environment = new Environment(); //to keep the variables in memory
     final Environment globals = new Environment();
-    private Environment environment = globals; //changes as we enter and exit local scopes, it tracks the current env 
+    private Environment environment = globals; //changes as we enter and exit local scopes, it tracks the current env
+    private final Map<Expr, Integer> locals = new HashMap<>(); 
 
     public Interpreter() {
         globals.define("clock", new LoxCallable() {
@@ -101,6 +104,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     private void execute(Stmt stmt){ //statement analogue for evaluate() for expressions
         stmt.accept(this);
+    }
+
+    void resolve(Expr expr, int depth){
+        locals.put(expr, depth);
     }
 
     void executeBlock(List<Stmt> statements, Environment environment){
@@ -285,9 +292,18 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
+        
         Object value = evaluate(expr.value);
-        environment.assign(expr.name, value);
-        return value;
+       //environment.assign(expr.name, value);
+       Integer distance = locals.get(expr);
+       if(distance != null){
+        environment.assignAt(distance, expr.name, value);
+       } else {
+        //if the var's scope distance is not found, we assume it to be global and handle it the same way as before
+        globals.assign(expr.name, value); 
+       }
+        
+       return value;
         /*
         assignment is an expression that can be nested inside other expressiond
         var a = 1;
@@ -297,6 +313,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        return lookUpVariable(expr.name, expr);
+    }
+
+    private Object lookUpVariable(Token name, Expr expr){
+        Integer distance = locals.get(expr); //looking up the resolved distance in the map (locals only, globals are not in the map)
+        if(distance != null){
+            return environment.getAt(distance, name.lexeme);
+        } else {
+            return globals.get(name);
+        }
     }
 }

@@ -7,8 +7,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-//import java.util.Scanner;
-import jlox.Scanner;
 
 public class Lox {
     private static final Interpreter interpreter = new Interpreter();
@@ -67,6 +65,12 @@ public class Lox {
 //        }
 
         //Stop if there was a syntax error
+        if(hadError) return;
+
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+
+        //stope if there are any resolution errors
         if(hadError) return;
 
         //System.out.println(new AstPrinter().print(expression));
