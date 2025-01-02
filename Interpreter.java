@@ -59,6 +59,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
     }
 
     @Override
+    public Object visitSetExpr(Expr.Set expr){
+        Object object = evaluate(expr.object);
+
+        if(!(object instanceof LoxInstance)){
+            throw new RuntimeError(expr.name, "Only instances have fields.");
+        }
+
+        Object value = evaluate(expr.value);
+        ((LoxInstance)object).set(expr.name, value);
+        return value;
+    }
+
+    @Override
     public Object visitGroupingExpr(Expr.Grouping expr){
         return evaluate(expr.expression);
     }
@@ -132,7 +145,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
     @Override
     public Void visitClassStmt(Stmt.Class stmt){ //interpret the class declaration
         environment.define(stmt.name.lexeme, null);
-        LoxClass klass = new LoxClass(stmt.name.lexeme); //runtime representation of a class
+
+        Map<String, LoxFunction> methods = new HashMap<>();
+        for(Stmt.Function method: stmt.methods){
+            LoxFunction function = new LoxFunction(method, environment);
+            methods.put(method.name.lexeme, function);
+        }
+
+        LoxClass klass = new LoxClass(stmt.name.lexeme, methods); //runtime representation of a class
         environment.assign(stmt.name, klass);
         return null;
     }
@@ -215,6 +235,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void>{
             throw new RuntimeError(expr.paren, "Expected " + function.arity() + " arguments but got " + arguments.size() + ".");
         }
         return function.call(this, arguments); //performing the actual function call 
+    }
+
+    @Override
+    public Object visitGetExpr(Expr.Get expr){ 
+        /*
+         Actual property access (for class methods and properties)
+         evaluate the expression whose property is accessed (only classes have that property, other types throw a runtime error)
+         */
+        Object object = evaluate(expr.object); 
+        if(object instanceof LoxInstance){
+            return ((LoxInstance) object).get(expr.name);
+        }
+        throw new RuntimeError(expr.name, "Only instances have properties.");
     }
 
     private boolean isEqual(Object a, Object b){ //representing Lox objects in terms of Java, implementing Lox's notion of equality vs Java's notion

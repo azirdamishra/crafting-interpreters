@@ -79,6 +79,15 @@ returnStmt -> "return" expression? ";" ;
 Adding classes:
 declaration -> classDecl | funDecl | varDecl | statement ;
 classDecl -> "class" IDENTIFIER "{" function* "}" ;
+
+Adding .property to object (not v OOPs for Lox)
+call -> primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+
+Adding dotted identifiers on the left hand side like so: someObject.someProperty = value;
+assignment -> ( call "." )? IDENTIFIER "=" assignment | logic_or ;
+
+//even though methods are owned by class, they are still accessed through instances of that class
+
  */
 
 public class Parser {
@@ -303,6 +312,9 @@ public class Parser {
             if(expr instanceof Expr.Variable){
                 Token name = ((Expr.Variable)expr).name;
                 return new Expr.Assign(name, value);
+            } else if (expr instanceof Expr.Get){
+                Expr.Get get = (Expr.Get) expr;
+                return new Expr.Set(get.object, get.name, value);
             }
 
             error(equals, "Invalid assignment target.");
@@ -426,10 +438,13 @@ public class Parser {
     private Expr call(){
         Expr expr = primary();
 
-        while (true) { 
+        while (true) { //corresponds to the * in the new call() grammar rule
             if(match(LEFT_PAREN)){
                 expr = finishCall(expr);
-            }else{
+            } else if(match(DOT)){
+                Token name = consume(IDENTIFIER, "Expect property name after '.'.");
+                expr = new Expr.Get(expr, name);
+            } else{
                 break;
             }
         }
