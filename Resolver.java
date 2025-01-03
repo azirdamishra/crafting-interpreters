@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
+
+
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void>{
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>(); //Each element in the stack is a Map representing a single block scope. Keys -> Environment, variable names, Value -> Boolean
@@ -21,6 +23,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void>{
         METHOD
     }
 
+    private enum ClassType{
+        NONE,
+        CLASS
+    }
+
+    private ClassType currentClass = ClassType.NONE; //informs us if we are currently inside a class declaration when traversing the syntax tree
+
     @Override
     public Void visitBlockStmt(Stmt.Block stmt){ //begin new scope, traverses into the statements inside the block and then discards the scope
         beginScope();
@@ -31,6 +40,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void>{
 
     @Override
     public Void visitClassStmt(Stmt.Class stmt){ //plumb the node through the resolver first
+        ClassType enclosingClass = currentClass;
+        currentClass = ClassType.CLASS;
+
         declare(stmt.name);
         define(stmt.name);
 
@@ -44,6 +56,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void>{
 
         endScope();
 
+        currentClass = enclosingClass;
         return null;
     }
 
@@ -163,6 +176,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void>{
 
     @Override
     public Void visitThisExpr(Expr.This expr){
+        if(currentClass == ClassType.NONE){
+            Lox.error(expr.keyword, "Can't use 'this' outside of a class.");
+            return null;
+        }
+        
         resolveLocal(expr, expr.keyword);
         return null;
     }
